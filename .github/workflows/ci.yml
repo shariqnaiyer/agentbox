@@ -1,0 +1,41 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    name: test (${{ matrix.os }})
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.24"
+      - run: go vet ./...
+      - run: go test ./...
+      - run: go build ./...
+      # Smoke gate: build the binary and run read-only commands.
+      - run: |
+          go build -o /tmp/box .
+          /tmp/box version
+          /tmp/box --help
+
+  cross:
+    name: cross-compile all targets
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.24"
+      - run: make cross
+      - uses: actions/upload-artifact@v4
+        with:
+          name: box-binaries
+          path: dist/*

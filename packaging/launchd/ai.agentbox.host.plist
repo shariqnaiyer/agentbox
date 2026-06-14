@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Reference copy of the LaunchAgent that `box host init` installs to
+  ~/Library/LaunchAgents/ai.agentbox.host.plist on macOS. agentbox generates
+  this in internal/platform/darwin.go; this file is here for inspection and
+  manual install. Replace /usr/local/bin/box with your actual path.
+
+  Manual install:
+    cp ai.agentbox.host.plist ~/Library/LaunchAgents/
+    launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/ai.agentbox.host.plist
+-->
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>ai.agentbox.host</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>/usr/local/bin/box</string>
+    <string>host</string>
+  </array>
+  <key>RunAtLoad</key>
+  <true/>
+  <key>KeepAlive</key>
+  <true/>
+  <key>ProcessType</key>
+  <string>Background</string>
+  <key>StandardOutPath</key>
+  <string>/Users/CHANGEME/.config/agentbox/host.log</string>
+  <key>StandardErrorPath</key>
+  <string>/Users/CHANGEME/.config/agentbox/host.log</string>
+</dict>
+</plist>

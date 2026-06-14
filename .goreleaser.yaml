@@ -1,0 +1,37 @@
+version: 2
+project_name: agentbox
+
+before:
+  hooks:
+    - go mod tidy
+
+builds:
+  - id: box
+    main: .
+    binary: box
+    env:
+      - CGO_ENABLED=0
+    goos: [linux, darwin]
+    goarch: [amd64, arm64]
+    ldflags:
+      - -s -w -X github.com/shariqnaiyer/agentbox/cmd/box.Version={{ .Version }}
+
+archives:
+  - id: default
+    name_template: "box_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    files:
+      - README.md
+      - LICENSE
+      - DECISIONS.md
+
+checksum:
+  name_template: "checksums.txt"
+
+release:
+  github:
+    owner: shariqnaiyer
+    name: agentbox
+
+changelog:
+  use: github
+  sort: asc

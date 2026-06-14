@@ -1,0 +1,28 @@
+# Reference copy of the systemd unit that `box host init` installs to
+# /etc/systemd/system/agentbox-host.service on Linux. agentbox generates this in
+# internal/platform/linux.go (a SYSTEM unit running as your user, so it survives
+# logout without enable-linger). This file is here for inspection / manual
+# install. Replace CHANGEME with your username/home and /usr/local/bin/box with
+# your path.
+#
+# Manual install:
+#   sudo install -m644 agentbox-host.service /etc/systemd/system/
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable --now agentbox-host
+
+[Unit]
+Description=agentbox host supervisor
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=CHANGEME
+Environment=HOME=/home/CHANGEME
+Environment=XDG_CONFIG_HOME=/home/CHANGEME/.config
+ExecStart=/usr/local/bin/box host
+Restart=always
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target
