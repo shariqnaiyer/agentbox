@@ -93,9 +93,10 @@ func AttachArgs(name string) []string {
 
 // RemoteAttachCommand returns a single shell string that attaches-or-creates
 // the named session, for transports that take a remote command string
-// (mosh/et). Pre-tuned env keeps colors sane.
+// (ssh/et). It prepends the Homebrew bin dirs so tmux is found even in a
+// non-interactive ssh session that hasn't loaded the user's PATH.
 func RemoteAttachCommand(name string) string {
-	return "tmux new-session -A -s " + shellQuote(name)
+	return `PATH="/opt/homebrew/bin:/usr/local/bin:$PATH" tmux new-session -A -s ` + shellQuote(name)
 }
 
 func shellQuote(s string) string {

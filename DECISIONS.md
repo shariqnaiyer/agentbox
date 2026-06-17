@@ -104,6 +104,14 @@ As a fallback for reachability, init also enables system Remote Login
 falls back to instructions; `systemctl enable --now ssh` on Linux). `box doctor`'s
 `ssh-access` check passes when Tailscale SSH or sshd is available.
 
+## Homebrew tools must be on the non-interactive ssh PATH
+A non-interactive `ssh host 'tmux ...'` doesn't load the user's interactive PATH,
+so Homebrew-installed `tmux` / `mosh-server` (`/opt/homebrew/bin`) aren't found
+("command not found: tmux"). `box host init` appends a PATH line to `~/.zshenv`
+(sourced for every zsh, including non-interactive), and the remote attach command
+also prepends the Homebrew bins as a belt-and-suspenders. Linux is unaffected
+(tmux lives on the default PATH).
+
 ## Known limitations (documented, not bugs)
 - macOS lid-close on **battery** can still sleep despite `caffeinate`; a Mac host
   should stay on AC. `box doctor` notes this.

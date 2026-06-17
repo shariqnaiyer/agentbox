@@ -113,7 +113,9 @@ func ConnectArgs(k Kind, h config.Host, session string) (bin string, args []stri
 		if len(id) > 0 {
 			args = append(args, "--ssh=ssh "+strings.Join(id, " "))
 		}
-		args = append(args, target, "--", "tmux", "new-session", "-A", "-s", session)
+		// Run the attach through sh -c so the PATH prefix in `remote` applies
+		// (Homebrew tmux isn't on a non-interactive PATH).
+		args = append(args, target, "--", "sh", "-c", remote)
 		return "mosh", args, "", nil
 	case KindET:
 		hostport := dest + ":" + itoa(etPort)

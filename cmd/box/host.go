@@ -7,7 +7,9 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"runtime"
+	"strings"
 	"syscall"
 
 	"github.com/shariqnaiyer/agentbox/internal/agents"
@@ -85,6 +87,9 @@ func hostInit(args []string) error {
 			okmsg("core dependencies present")
 		}
 	}
+
+	// 1b. Make Homebrew tools visible to non-interactive ssh (tmux, mosh-server).
+	ensureHostShellPath()
 
 	// 2. Toolkit + hooks (so box ls / status work on a fresh host).
 	step("Installing status toolkit and Claude hooks")
@@ -211,6 +216,31 @@ func hostStatus(args []string) error {
 		}
 	}
 	return nil
+}
+
+// ensureHostShellPath makes Homebrew's bin dirs visible to non-interactive ssh
+// sessions (which don't load the user's interactive PATH), so remote tmux and
+// mosh-server are found. macOS/Homebrew only — Linux keeps tmux on the default
+// PATH. Idempotent append to ~/.zshenv (sourced for every zsh).
+func ensureHostShellPath() {
+	if runtime.GOOS != "darwin" {
+		return
+	}
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return
+	}
+	zshenv := filepath.Join(home, ".zshenv")
+	if b, err := os.ReadFile(zshenv); err == nil && strings.Contains(string(b), "/opt/homebrew/bin") {
+		return
+	}
+	f, err := os.OpenFile(zshenv, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o644)
+	if err != nil {
+		warn("couldn't update ~/.zshenv for ssh PATH: %v", err)
+		return
+	}
+	defer f.Close()
+	fmt.Fprint(f, "\n# agentbox: make Homebrew tools (tmux, mosh-server) visible to non-interactive ssh\nexport PATH=\"/opt/homebrew/bin:/usr/local/bin:$PATH\"\n")
 }
 
 // ensureRemoteLogin tries to enable sshd, falling back to clear instructions.
