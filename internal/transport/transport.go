@@ -16,12 +16,24 @@ import (
 	"os"
 	"os/exec"
 	"runtime"
+	"strings"
 	"syscall"
 	"time"
 
 	"github.com/shariqnaiyer/agentbox/internal/config"
 	"github.com/shariqnaiyer/agentbox/internal/tmuxutil"
 )
+
+// sshIdentityArgs returns ssh options pinning agentbox's own key (if `box trust`
+// has set one up): use only that key, ignore any ssh-agent. Empty when no key
+// exists, so default ssh behavior applies.
+func sshIdentityArgs() []string {
+	kp := config.SSHKeyPath()
+	if _, err := os.Stat(kp); err != nil {
+		return nil
+	}
+	return []string{"-o", "IdentitiesOnly=yes", "-o", "IdentityAgent=none", "-i", kp}
+}
 
 // Kind identifies a transport rung.
 type Kind string
@@ -94,9 +106,15 @@ func ConnectArgs(k Kind, h config.Host, session string) (bin string, args []stri
 		target = user + "@" + dest
 	}
 	remote := tmuxutil.RemoteAttachCommand(session)
+	id := sshIdentityArgs()
 	switch k {
 	case KindMosh:
-		return "mosh", []string{target, "--", "tmux", "new-session", "-A", "-s", session}, "", nil
+		args := []string{}
+		if len(id) > 0 {
+			args = append(args, "--ssh=ssh "+strings.Join(id, " "))
+		}
+		args = append(args, target, "--", "tmux", "new-session", "-A", "-s", session)
+		return "mosh", args, "", nil
 	case KindET:
 		hostport := dest + ":" + itoa(etPort)
 		if user != "" {
@@ -104,7 +122,9 @@ func ConnectArgs(k Kind, h config.Host, session string) (bin string, args []stri
 		}
 		return "et", []string{hostport, "-c", remote}, "", nil
 	case KindSSH:
-		return "ssh", []string{"-t", target, remote}, "", nil
+		args := append([]string{}, id...)
+		args = append(args, "-t", target, remote)
+		return "ssh", args, "", nil
 	case KindTTYD:
 		return "", nil, fmt.Sprintf("http://%s:%d", dest, h.TtydPort), nil
 	}

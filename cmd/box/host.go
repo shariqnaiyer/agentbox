@@ -114,8 +114,21 @@ func hostInit(args []string) error {
 		}
 	}
 
-	// 3b. Remote Login (sshd) — mosh and ssh both bootstrap over it.
-	step("Ensuring Remote Login (sshd) is on — mosh/ssh need it")
+	// 3a. Tailscale SSH — clients authenticate via tailnet identity, so no SSH
+	// keys or passwords are needed (the cleanest auth path for our transports).
+	if reach.IsRunning() {
+		step("Enabling Tailscale SSH (no SSH keys needed from clients)")
+		if err := reach.EnableSSH(); err != nil {
+			warn("Tailscale SSH unavailable (the sandboxed App Store build can't run it).")
+			warn("That's fine — clients can set up a key in one step: `box trust %s`", *hostName)
+		} else {
+			okmsg("Tailscale SSH enabled")
+		}
+	}
+
+	// 3b. Remote Login (sshd) — a fallback when Tailscale SSH isn't used; mosh
+	// and ssh bootstrap over it.
+	step("Ensuring Remote Login (sshd) is on — mosh/ssh fallback")
 	if doctorcheck.SSHDListening() {
 		okmsg("Remote Login already on")
 	} else {

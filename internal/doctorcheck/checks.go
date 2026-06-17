@@ -71,12 +71,17 @@ func RunAll(plat platform.Platform) []Check {
 			Detail: "not installed", Fix: "Install Tailscale, then box host init."})
 	}
 
-	// sshd / Remote Login — mosh and ssh both need it on the host.
-	if SSHDListening() {
-		cs = append(cs, Check{Name: "remote-login", OK: true, Severity: SevOK, Detail: "sshd listening on :22"})
-	} else {
-		cs = append(cs, Check{Name: "remote-login", OK: false, Severity: SevError,
-			Detail: "sshd not listening — mosh/ssh transports can't connect", Fix: EnableRemoteLoginHint()})
+	// Auth path for the ssh/mosh transports: either Tailscale SSH (preferred —
+	// no keys) or system sshd / Remote Login.
+	switch {
+	case reach.SSHEnabled():
+		cs = append(cs, Check{Name: "ssh-access", OK: true, Severity: SevOK, Detail: "Tailscale SSH enabled (no keys needed)"})
+	case SSHDListening():
+		cs = append(cs, Check{Name: "ssh-access", OK: true, Severity: SevOK, Detail: "sshd listening on :22"})
+	default:
+		cs = append(cs, Check{Name: "ssh-access", OK: false, Severity: SevError,
+			Detail: "no SSH access — mosh/ssh transports can't connect",
+			Fix:    "Enable Tailscale SSH: tailscale set --ssh  (or " + EnableRemoteLoginHint() + ")"})
 	}
 
 	cs = append(cs, binCheck("mosh", SevWarn, "Default transport. box host init installs it."))

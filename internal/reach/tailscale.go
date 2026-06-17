@@ -91,6 +91,24 @@ func Up(authKey, hostname string) error {
 	return c.Run()
 }
 
+// EnableSSH turns on Tailscale SSH, so clients on the tailnet authenticate via
+// their tailnet identity instead of SSH keys/passwords. This is the cleanest
+// auth path for agentbox's ssh/mosh transports — no key management at all.
+func EnableSSH() error {
+	c := exec.Command(Bin(), "set", "--ssh")
+	c.Stdin, c.Stdout, c.Stderr = os.Stdin, os.Stdout, os.Stderr
+	return c.Run()
+}
+
+// SSHEnabled reports whether this node advertises Tailscale SSH.
+func SSHEnabled() bool {
+	out, err := exec.Command(Bin(), "debug", "prefs").Output()
+	if err != nil {
+		return false
+	}
+	return strings.Contains(string(out), "\"RunSSH\": true") || strings.Contains(string(out), "RunSSH:true")
+}
+
 // DNSName returns the host's MagicDNS name without the trailing dot.
 func DNSName() string {
 	s, err := GetStatus()

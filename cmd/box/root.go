@@ -27,6 +27,7 @@ CONNECT / PAIR
   box connect [host] [session] [--list]
   box pair                  (on host) print a pairing code + QR
   box pair <code>           (on client) record a host
+  box trust [host]          Set up passwordless SSH to a host (dedicated key)
   box hosts [rm <name>]
   box web                   Enable the browser (ttyd) transport
 
@@ -42,6 +43,7 @@ var commands = map[string]func([]string) error{
 	"ls":      cmdLs,
 	"connect": cmdConnect,
 	"pair":    cmdPair,
+	"trust":   cmdTrust,
 	"hosts":   cmdHosts,
 	"kill":    cmdKill,
 	"web":     cmdWeb,

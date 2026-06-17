@@ -53,6 +53,12 @@ func managedPath() string { return filepath.Join(Dir(), "managed.json") }
 // StatePath is the path of the supervisor's health snapshot.
 func StatePath() string { return filepath.Join(StateDir(), "state.json") }
 
+// SSHKeyPath is agentbox's dedicated client SSH key. Using our own key (set up
+// by `box trust`) lets the ssh/mosh transports authenticate with exactly one
+// key — sidestepping agents (e.g. 1Password) that offer many keys and trip
+// sshd's MaxAuthTries ("Too many authentication failures").
+func SSHKeyPath() string { return filepath.Join(Dir(), "id_ed25519") }
+
 // LogPath is the supervisor's ring-buffer log.
 func LogPath() string { return filepath.Join(StateDir(), "host.log") }
 

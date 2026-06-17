@@ -21,6 +21,8 @@ func TestPromote(t *testing.T) {
 }
 
 func TestConnectArgs(t *testing.T) {
+	// Isolate config dir so no agentbox key exists → default ssh args.
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
 	h := config.Host{Name: "mac", TailscaleDNS: "mac.tail.ts.net", SSHUser: "me", TtydPort: 7681}
 	sess := "work"
 

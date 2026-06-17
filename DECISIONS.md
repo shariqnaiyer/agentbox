@@ -77,14 +77,32 @@ the guaranteed fallback. Note: the existence/behavior of Remote Control comes
 from research dated after the build's knowledge cutoff — verify before relying
 on it.
 
-## The host needs sshd (Remote Login)
-The mosh and ssh transports both bootstrap over `sshd`, which is **off by default
-on macOS**. `box host init` now tries to enable it (`sudo systemsetup
--setremotelogin on` on macOS — which can require Full Disk Access and then falls
-back to a clear "enable it in System Settings" instruction; `systemctl enable
---now ssh` on Linux), and `box doctor` flags it as a critical issue when missing.
-Discovered when the first real connect failed with "no reachable transport"
-despite perfect tailnet reachability — port 22 was simply closed on the mini.
+## SSH auth: Tailscale SSH first, sshd as fallback
+The mosh and ssh transports need an SSH auth path on the host. Two real snags
+surfaced on the first hardware run:
+1. **sshd off** — macOS Remote Login is off by default, so port 22 was closed and
+   connect failed with "no reachable transport" despite perfect tailnet reachability.
+2. **SSH key spam** — once sshd was on, a client using the 1Password SSH agent
+   offered many keys (none authorized on the host) and hit sshd's MaxAuthTries
+   ("Too many authentication failures").
+
+Two solutions, in preference order:
+
+1. **Tailscale SSH** (no keys at all): `box host init` runs `tailscale set --ssh`.
+   BUT the **sandboxed Mac App Store Tailscale build can't run the SSH server**
+   ("does not run in sandboxed Tailscale GUI builds") — common on macOS. So this
+   can't be relied on; init treats it as best-effort.
+2. **A dedicated agentbox SSH key** (`box trust <host>`): generates
+   `~/.config/agentbox/id_ed25519`, installs it on the host (one password prompt),
+   and the ssh/mosh transports use ONLY that key (`IdentitiesOnly=yes`,
+   `IdentityAgent=none`). This deliberately bypasses ssh-agents like **1Password**,
+   which offer many keys and trip sshd's MaxAuthTries ("Too many authentication
+   failures"). This is the reliable path on sandboxed-Tailscale hosts.
+
+As a fallback for reachability, init also enables system Remote Login
+(`systemsetup -setremotelogin on` on macOS — may need Full Disk Access, then
+falls back to instructions; `systemctl enable --now ssh` on Linux). `box doctor`'s
+`ssh-access` check passes when Tailscale SSH or sshd is available.
 
 ## Known limitations (documented, not bugs)
 - macOS lid-close on **battery** can still sleep despite `caffeinate`; a Mac host
