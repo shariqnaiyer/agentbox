@@ -65,10 +65,32 @@ $SUDO install -m 0755 "$tmp/$BINARY" "$dest/$BINARY"
 
 echo ""
 echo "Installed $BINARY to $dest/$BINARY"
+
+# If the install dir isn't on PATH, persist it to the user's shell profile and
+# print the line to use it in the current shell (a piped installer can't change
+# the parent shell's environment).
 case ":$PATH:" in
-  *":$dest:"*) ;;
-  *) echo "NOTE: add $dest to your PATH." ;;
+  *":$dest:"*)
+    : # already on PATH, nothing to do
+    ;;
+  *)
+    line="export PATH=\"$dest:\$PATH\""
+    case "$(basename "${SHELL:-sh}")" in
+      zsh)  rc="$HOME/.zshrc" ;;
+      bash) rc="$HOME/.bashrc" ;;
+      *)    rc="$HOME/.profile" ;;
+    esac
+    if [ -f "$rc" ] && grep -qF "$dest" "$rc" 2>/dev/null; then
+      echo "$dest is already configured in $rc."
+    else
+      printf '\n# Added by agentbox installer\n%s\n' "$line" >> "$rc"
+      echo "Added $dest to your PATH in $rc (effective in new shells)."
+    fi
+    echo "To use box in THIS shell now, run:"
+    echo "  $line"
+    ;;
 esac
+
 echo ""
 echo "Next:"
 echo "  On your always-on box:   box host init"
