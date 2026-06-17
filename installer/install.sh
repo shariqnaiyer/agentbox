@@ -40,17 +40,28 @@ echo "Downloading $asset ..."
 curl -fsSL "$url" -o "$tmp/box.tgz"
 tar -xzf "$tmp/box.tgz" -C "$tmp"
 
-# Choose an install dir we can write to.
-if [ -w /usr/local/bin ] || [ "$(id -u)" = "0" ]; then
-  dest="/usr/local/bin"
-else
-  dest="$HOME/.local/bin"
-  mkdir -p "$dest"
+# Choose an install dir. Prefer one that's already on PATH and writable (so the
+# binary works immediately with no PATH edits) — e.g. Homebrew's bin. Fall back
+# to /usr/local/bin via sudo, then to ~/.local/bin.
+SUDO=""
+dest=""
+for d in "$HOME/.local/bin" /opt/homebrew/bin /usr/local/bin; do
+  case ":$PATH:" in
+    *":$d:"*)
+      if [ -d "$d" ] && [ -w "$d" ]; then dest="$d"; break; fi
+      ;;
+  esac
+done
+if [ -z "$dest" ]; then
+  if [ "$(id -u)" = "0" ] || [ -w /usr/local/bin ]; then
+    dest="/usr/local/bin"
+  elif command -v sudo >/dev/null 2>&1; then
+    dest="/usr/local/bin"; SUDO="sudo"
+  else
+    dest="$HOME/.local/bin"; mkdir -p "$dest"
+  fi
 fi
-install -m 0755 "$tmp/$BINARY" "$dest/$BINARY" 2>/dev/null || {
-  echo "Installing to $dest needs sudo..."
-  sudo install -m 0755 "$tmp/$BINARY" "$dest/$BINARY"
-}
+$SUDO install -m 0755 "$tmp/$BINARY" "$dest/$BINARY"
 
 echo ""
 echo "Installed $BINARY to $dest/$BINARY"
