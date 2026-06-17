@@ -80,8 +80,13 @@ on it.
 ## Known limitations (documented, not bugs)
 - macOS lid-close on **battery** can still sleep despite `caffeinate`; a Mac host
   should stay on AC. `box doctor` notes this.
-- `eternal-terminal` (et) isn't in default apt/dnf/apk repos; the ladder skips it
-  and falls back to mosh/ttyd/ssh. `box host init` reports what it couldn't install.
+- **`et` (Eternal Terminal) is opt-in, not a default.** It's absent from default
+  apt/dnf/apk repos, and on macOS the `MisterTea/et` tap has no bottle — it builds
+  from source (needs Xcode Command Line Tools, which broke on a real mini running
+  macOS 26). Too fragile to install by default for a marginal TCP-fallback
+  transport. `box host init` installs only `mosh` (+ `ttyd` with `--web`); use
+  `box host init --with-et` to opt in. The transport ladder still uses `et` if
+  it's present. Packages install one at a time so one failure never blocks the rest.
 - The headless-Mac first-run permission question (can a monitor-less Mac grant
   all prompts?) is the plan's week-1 spike and is **not** resolved in code — it's
   an operational validation to run on real hardware.

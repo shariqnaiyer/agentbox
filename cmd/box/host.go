@@ -55,8 +55,9 @@ func hostInit(args []string) error {
 	fs := flag.NewFlagSet("host init", flag.ContinueOnError)
 	authKey := fs.String("authkey", "", "Tailscale auth key (else prompted)")
 	hostName := fs.String("hostname", hostnameOr("agentbox"), "host name (MagicDNS + display)")
-	noInstall := fs.Bool("no-install", false, "skip installing mosh/et/ttyd")
+	noInstall := fs.Bool("no-install", false, "skip installing transports")
 	web := fs.Bool("web", false, "enable the ttyd browser transport")
+	withEt := fs.Bool("with-et", false, "also install Eternal Terminal (et) — a source build needing Xcode CLT")
 	yes := fs.Bool("yes", false, "assume yes; non-interactive where possible")
 	if err := fs.Parse(args); err != nil {
 		return err
@@ -71,7 +72,7 @@ func hostInit(args []string) error {
 	// 1. Dependencies.
 	step("Checking dependencies")
 	if !*noInstall {
-		missing := missingDeps(*web)
+		missing := missingDeps(*web, *withEt)
 		if len(missing) > 0 {
 			if *yes || confirm(fmt.Sprintf("  Install %v via %s?", missing, plat.PackageManager().Name)) {
 				if err := plat.InstallPackages(missing...); err != nil {
@@ -189,10 +190,16 @@ func hostStatus(args []string) error {
 	return nil
 }
 
-func missingDeps(web bool) []string {
-	want := []string{"tmux", "mosh", "et"}
+func missingDeps(web, withEt bool) []string {
+	// et is intentionally NOT a default: on macOS it has no Homebrew bottle and
+	// builds from source (needs Xcode CLT), which is fragile across OS versions.
+	// mosh + ssh + ttyd cover the transport ladder; et is opt-in via --with-et.
+	want := []string{"tmux", "mosh"}
 	if web {
 		want = append(want, "ttyd")
+	}
+	if withEt {
+		want = append(want, "et")
 	}
 	var missing []string
 	for _, b := range want {
