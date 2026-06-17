@@ -69,14 +69,14 @@ func InstallHooks() error {
 	}
 	script := setStatusPath()
 	for event, state := range hookEvents {
-		if eventHasSetStatus(hooks[event]) {
-			continue
-		}
+		// Drop any prior set-status entries (including legacy flat-format ones
+		// that newer Claude Code rejects) and add a correct nested entry.
+		arr := withoutSetStatus(asArray(hooks[event]))
 		entry := map[string]any{
-			"type":    "command",
-			"command": "bash " + script + " " + state,
+			"hooks": []any{
+				map[string]any{"type": "command", "command": "bash " + script + " " + state},
+			},
 		}
-		arr, _ := hooks[event].([]any)
 		hooks[event] = append(arr, entry)
 	}
 	s["hooks"] = hooks
@@ -102,13 +102,48 @@ func eventHasSetStatus(v any) bool {
 		if cmd, ok := m["command"].(string); ok && strings.Contains(cmd, "set-status.sh") {
 			return true
 		}
-		if nested, ok := m["hooks"].([]any); ok {
-			for _, h := range nested {
-				if hm, ok := h.(map[string]any); ok {
-					if cmd, ok := hm["command"].(string); ok && strings.Contains(cmd, "set-status.sh") {
-						return true
-					}
-				}
+		if nested, ok := m["hooks"].([]any); ok && nestedHasSetStatus(nested) {
+			return true
+		}
+	}
+	return false
+}
+
+// asArray coerces a hooks-map value to a slice (nil-safe).
+func asArray(v any) []any {
+	if arr, ok := v.([]any); ok {
+		return arr
+	}
+	return nil
+}
+
+// withoutSetStatus returns arr with every entry referencing set-status.sh
+// removed — both the legacy flat {type,command} form and the nested
+// {hooks:[...]} form — preserving all other hooks (e.g. the user's own).
+func withoutSetStatus(arr []any) []any {
+	out := make([]any, 0, len(arr))
+	for _, item := range arr {
+		m, ok := item.(map[string]any)
+		if !ok {
+			out = append(out, item)
+			continue
+		}
+		if cmd, ok := m["command"].(string); ok && strings.Contains(cmd, "set-status.sh") {
+			continue
+		}
+		if nested, ok := m["hooks"].([]any); ok && nestedHasSetStatus(nested) {
+			continue
+		}
+		out = append(out, item)
+	}
+	return out
+}
+
+func nestedHasSetStatus(nested []any) bool {
+	for _, h := range nested {
+		if hm, ok := h.(map[string]any); ok {
+			if cmd, ok := hm["command"].(string); ok && strings.Contains(cmd, "set-status.sh") {
+				return true
 			}
 		}
 	}

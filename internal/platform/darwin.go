@@ -90,10 +90,12 @@ func (darwinPlatform) PackageManager() PkgMgr {
 	return PkgMgr{Name: "brew", Available: which("brew")}
 }
 
-// darwinPkgNames maps logical names to Homebrew formulae.
+// darwinPkgNames maps logical names to Homebrew formulae. Eternal Terminal is
+// not in homebrew-core — it lives in the MisterTea/et tap, and the tap-qualified
+// name auto-taps on install.
 var darwinPkgNames = map[string]string{
 	"mosh": "mosh",
-	"et":   "eternalterminal",
+	"et":   "MisterTea/et/et",
 	"ttyd": "ttyd",
 	"tmux": "tmux",
 }
@@ -102,17 +104,22 @@ func (d darwinPlatform) InstallPackages(logical ...string) error {
 	if !which("brew") {
 		return fmt.Errorf("Homebrew not found; install from https://brew.sh then re-run, or install %v manually", logical)
 	}
-	var pkgs []string
+	// Install one at a time so a single failure (e.g. a tap hiccup) doesn't
+	// block the others.
+	var failed []string
 	for _, l := range logical {
-		if name, ok := darwinPkgNames[l]; ok {
-			pkgs = append(pkgs, name)
+		name, ok := darwinPkgNames[l]
+		if !ok {
+			continue
+		}
+		if err := runInteractive("brew", "install", name); err != nil {
+			failed = append(failed, l)
 		}
 	}
-	if len(pkgs) == 0 {
-		return nil
+	if len(failed) > 0 {
+		return fmt.Errorf("failed to install %v", failed)
 	}
-	args := append([]string{"install"}, pkgs...)
-	return runInteractive("brew", args...)
+	return nil
 }
 
 func renderPlist(spec AutostartSpec) string {
