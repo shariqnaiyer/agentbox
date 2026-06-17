@@ -4,16 +4,37 @@
 package doctorcheck
 
 import (
+	"net"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"time"
 
 	"github.com/shariqnaiyer/agentbox/internal/agents"
 	"github.com/shariqnaiyer/agentbox/internal/config"
 	"github.com/shariqnaiyer/agentbox/internal/platform"
 	"github.com/shariqnaiyer/agentbox/internal/reach"
 )
+
+// SSHDListening reports whether sshd is accepting connections locally. mosh and
+// ssh both bootstrap over it, so the host needs it (macOS Remote Login).
+func SSHDListening() bool {
+	c, err := net.DialTimeout("tcp", "127.0.0.1:22", 1500*time.Millisecond)
+	if err != nil {
+		return false
+	}
+	_ = c.Close()
+	return true
+}
+
+// EnableRemoteLoginHint returns the OS-appropriate way to turn on sshd.
+func EnableRemoteLoginHint() string {
+	if runtime.GOOS == "darwin" {
+		return "Enable Remote Login: System Settings → General → Sharing → Remote Login (or: sudo systemsetup -setremotelogin on)"
+	}
+	return "Start sshd: sudo systemctl enable --now ssh"
+}
 
 // Severity classifies a check result.
 type Severity string
@@ -48,6 +69,14 @@ func RunAll(plat platform.Platform) []Check {
 	} else {
 		cs = append(cs, Check{Name: "tailscale", OK: false, Severity: SevError,
 			Detail: "not installed", Fix: "Install Tailscale, then box host init."})
+	}
+
+	// sshd / Remote Login — mosh and ssh both need it on the host.
+	if SSHDListening() {
+		cs = append(cs, Check{Name: "remote-login", OK: true, Severity: SevOK, Detail: "sshd listening on :22"})
+	} else {
+		cs = append(cs, Check{Name: "remote-login", OK: false, Severity: SevError,
+			Detail: "sshd not listening — mosh/ssh transports can't connect", Fix: EnableRemoteLoginHint()})
 	}
 
 	cs = append(cs, binCheck("mosh", SevWarn, "Default transport. box host init installs it."))

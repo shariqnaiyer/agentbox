@@ -77,6 +77,15 @@ the guaranteed fallback. Note: the existence/behavior of Remote Control comes
 from research dated after the build's knowledge cutoff — verify before relying
 on it.
 
+## The host needs sshd (Remote Login)
+The mosh and ssh transports both bootstrap over `sshd`, which is **off by default
+on macOS**. `box host init` now tries to enable it (`sudo systemsetup
+-setremotelogin on` on macOS — which can require Full Disk Access and then falls
+back to a clear "enable it in System Settings" instruction; `systemctl enable
+--now ssh` on Linux), and `box doctor` flags it as a critical issue when missing.
+Discovered when the first real connect failed with "no reachable transport"
+despite perfect tailnet reachability — port 22 was simply closed on the mini.
+
 ## Known limitations (documented, not bugs)
 - macOS lid-close on **battery** can still sleep despite `caffeinate`; a Mac host
   should stay on AC. `box doctor` notes this.

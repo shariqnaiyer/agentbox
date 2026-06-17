@@ -54,7 +54,7 @@ func cmdConnect(args []string) error {
 
 	best, ok := transport.Best(h)
 	if !ok {
-		return fmt.Errorf("no reachable transport for %s (%s). Is the box up and on the tailnet? Try: box host status", h.Name, h.Addr())
+		return fmt.Errorf("no reachable transport for %s (%s).\n  Checklist: (1) the box is on the tailnet, (2) Remote Login (sshd) is ON on the box — mosh/ssh need it, (3) your client is on the same tailnet.\n  On the box, run: box doctor", h.Name, h.Addr())
 	}
 	config.SetLastTransport(h.Name, string(best))
 	fmt.Fprintf(os.Stderr, "connecting to %s via %s (session %s)...\n", h.Name, best, session)

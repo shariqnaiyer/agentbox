@@ -7,10 +7,12 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
+	"runtime"
 	"syscall"
 
 	"github.com/shariqnaiyer/agentbox/internal/agents"
 	"github.com/shariqnaiyer/agentbox/internal/config"
+	"github.com/shariqnaiyer/agentbox/internal/doctorcheck"
 	"github.com/shariqnaiyer/agentbox/internal/pairing"
 	"github.com/shariqnaiyer/agentbox/internal/platform"
 	"github.com/shariqnaiyer/agentbox/internal/reach"
@@ -112,6 +114,14 @@ func hostInit(args []string) error {
 		}
 	}
 
+	// 3b. Remote Login (sshd) — mosh and ssh both bootstrap over it.
+	step("Ensuring Remote Login (sshd) is on — mosh/ssh need it")
+	if doctorcheck.SSHDListening() {
+		okmsg("Remote Login already on")
+	} else {
+		ensureRemoteLogin(plat)
+	}
+
 	// 4. Agent auth.
 	step("Authenticating the default agent (Claude)")
 	if err := agents.NewRegistry().Default().Bootstrap(); err != nil {
@@ -188,6 +198,24 @@ func hostStatus(args []string) error {
 		}
 	}
 	return nil
+}
+
+// ensureRemoteLogin tries to enable sshd, falling back to clear instructions.
+// On macOS, systemsetup may require Full Disk Access and fail — in which case
+// the user enables it via System Settings (we tell them how).
+func ensureRemoteLogin(plat platform.Platform) {
+	var cmd []string
+	if runtime.GOOS == "darwin" {
+		cmd = []string{"systemsetup", "-setremotelogin", "on"}
+	} else {
+		cmd = []string{"systemctl", "enable", "--now", "ssh"}
+	}
+	if err := plat.Elevate(cmd, "enable Remote Login"); err == nil && doctorcheck.SSHDListening() {
+		okmsg("Remote Login enabled")
+		return
+	}
+	warn("Couldn't enable Remote Login automatically. Turn it on (mosh/ssh need it):")
+	warn("  %s", doctorcheck.EnableRemoteLoginHint())
 }
 
 func missingDeps(web, withEt bool) []string {
